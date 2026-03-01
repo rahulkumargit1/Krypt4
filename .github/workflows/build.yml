@@ -45,30 +45,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
       - name: Copy server file to EC2
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "server/main.py"
-          target: "~/krypt-server/"
-          strip_components: 1
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            server/main.py \
+            ubuntu@${{ secrets.EC2_HOST }}:~/krypt-server/main.py
 
       - name: Deploy Krypt server to EC2
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 60s
-          script: |
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ubuntu@${{ secrets.EC2_HOST }} << 'ENDSSH'
             pkill -f uvicorn || true
             sleep 2
             pip3 install fastapi "uvicorn[standard]" websockets --break-system-packages -q
             cd ~/krypt-server
-            setsid nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > ~/uvicorn.log 2>&1 &
-            echo $! > ~/uvicorn.pid
-            disown
+            nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > ~/uvicorn.log 2>&1 &
             sleep 3
             curl -s http://localhost:8000/health && echo "Server OK" || echo "Server starting"
+          ENDSSH
