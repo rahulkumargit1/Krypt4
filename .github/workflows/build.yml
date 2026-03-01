@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -42,21 +41,29 @@ jobs:
   deploy-server:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Copy server file to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "server/main.py"
+          target: "~/krypt-server/"
+          strip_components: 1
 
       - name: Deploy Krypt server to EC2
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_KEY }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             pkill -f uvicorn || true
             sleep 1
-            mkdir -p ~/krypt-server
             pip3 install fastapi "uvicorn[standard]" websockets --break-system-packages -q
             cd ~/krypt-server
             nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &
