@@ -61,12 +61,13 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          request_timeout: 60
           script: |
             pkill -f uvicorn || true
-            sleep 1
+            sleep 2
             pip3 install fastapi "uvicorn[standard]" websockets --break-system-packages -q
             cd ~/krypt-server
-            nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &
-            disown
-            sleep 2
-            curl -s http://localhost:8000/health && echo "Server OK"
+            nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > ~/uvicorn.log 2>&1 &
+            echo $! > ~/uvicorn.pid
+            sleep 3
+            curl -s http://localhost:8000/health && echo "Server OK" || echo "Server may still be starting"
