@@ -56,11 +56,9 @@ class WebRTCManager(
     }
 
     private fun initFactory() {
-        peerConnectionFactory = PeerConnectionFactory.builder()
-            .setAudioDeviceModule(JavaAudioDeviceModule.builder(context).createAudioDeviceModule())
-            .createPeerConnectionFactory()
-    }
-
+    peerConnectionFactory = PeerConnectionFactory.builder()
+        .createPeerConnectionFactory()
+}
     private fun initLocalAudio() {
         val factory = peerConnectionFactory ?: return
         val constraints = MediaConstraints().apply {
